@@ -1,6 +1,8 @@
-#include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_AS7343.h>
+
+#include "colourConvert.cpp";
+
 const int NEOPIN = 0;
 
 Adafruit_NeoPixel strip(1, NEOPIN, NEO_GRB + NEO_KHZ800);
