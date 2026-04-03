@@ -90,7 +90,7 @@ void Hue::spec2rgb(){
 
     r = (uint8_t)(rLin*255.0);
     g = (uint8_t)(gLin*255.0);
-    g = (uint8_t)(bLin*255.0);
+    b = (uint8_t)(bLin*255.0);
 
     //convert rgb to hex string, put in hex char array
     snprintf(hex, sizeof(hex), "#%02X%02X%02X", r, g, b);

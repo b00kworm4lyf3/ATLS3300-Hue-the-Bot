@@ -1,4 +1,4 @@
-#include "hue.cpp";
+#include "hue.h"
 
 Hue hue;
 
@@ -18,3 +18,12 @@ void loop() {
   hue.show();
   delay(500);
 }
+
+//task sketchout
+//core 1: sensor tasks
+//colour sense -- read when button is pressed -- lower priority
+//accelerometer sense -- check this every 500ms and then every 50 if motionn is detected -- higher priority
+
+//core 0: display
+//display face screen
+//display colour val screen
