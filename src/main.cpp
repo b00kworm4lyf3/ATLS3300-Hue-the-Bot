@@ -13,7 +13,8 @@ void setup() {
 }
 
 void loop() {
-  hue.read();
+  hue.readCol();
+  hue.readMpu(); //need to delay ~10 sec for proper readings
   hue.printRead();
   hue.show();
   delay(500);

@@ -33,22 +33,46 @@ Hue::Hue(uint8_t neoPin, uint8_t numPix)
   return;
 }
 
-bool Hue::begin(){ //originally what was in main setup()
+bool Hue::begin(){
   strip.begin();
   strip.setBrightness(30);
   strip.show();
 
-  if(!colSense.begin()) return false;
+  if(!colSense.begin()){
+    Serial.println("Colour sensor failed to initialize!");
+    return false;
+  }
 
-  // Configure sensor
+  //config colour sensor
   colSense.setGain(AS7343_GAIN_64X);
   colSense.setATIME(29);  // Integration cycles
   colSense.setASTEP(599); // Step size
 
+  if(!mpu.begin()){
+    Serial.println("Gyro-accel sensor failed to initialize!");
+    return false;
+  }
+
+  //config mpu sensor
+  //set max g-force measure
+  //2G-16G, lower more precise/higher more impact
+  //4G = ~+- 9.8m/s^2 * 4 = ~+-39.2m/s^2
+  mpu.setAccelerometerRange(MPU6050_RANGE_4_G); 
+
+  //set max rot speed
+  //250deg-2000deg, lower more precise
+  //500deg = +-500deg/s but gyro vals are rad/sec! so read +-8.7rad/sec
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+
+  //set filter bandwidth
+  //smooth noise and vib, filters out anything changing faster
+  //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+
   return true;
 }
 
-void Hue::read(){
+void Hue::readCol(){
   if (!colSense.readAllChannels(readings)) {
     Serial.println("Read failed!");
     return;
@@ -105,6 +129,16 @@ void Hue::show(){
   return;
 }
 
+void Hue::readMpu(){
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
+
+  accel = a.acceleration;
+  gyro = g.gyro;
+
+  return;
+}
+
 void Hue::printRead(){
   Serial.println("\n--- Spectral Readings ---");
 
@@ -124,4 +158,11 @@ void Hue::printRead(){
   //print rgb and hex vals
   Serial.println("Colour (hex): " + String(hex));
   Serial.println("RGB: " + String(r) + ", " + String(g) + ", " + String(b));
+
+  //print accel and gyro reads
+  Serial.println("Accel (x(L/R), y(F/B), z(U/D)): ");
+  Serial.println(String(accel.x) + ", " + String(accel.y) + ", " + String(accel.z));
+  Serial.println("Gyro (x(pitch), y(roll), z(yaw)): ");
+  Serial.println(String(gyro.x) + ", " + String(gyro.y) + ", " + String(gyro.z));
+
 }
