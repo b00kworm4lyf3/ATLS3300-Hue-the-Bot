@@ -3,17 +3,18 @@
 
 //CIE 1931 2° color matching functions (X̄, Ȳ, Z̄)
 //at AS7343 channel center wavelengths
+//sourced from https://cie.co.at/datatable/cie-1931-colour-matching-functions-2-degree-observer
 const Hue::ChannelCIE Hue::cieTable[NUM_VIS] = {
-  {0.0232, 0.0006, 0.1102},  // 405nm F1
-  {0.1096, 0.0040, 0.5359},  // 425nm F2
-  {0.3362, 0.0380, 1.7721},  // 450nm FZ
-  {0.1421, 0.0586, 1.0507},  // 475nm F3
-  {0.0093, 0.1693, 0.2080},  // 515nm F4
-  {0.4334, 0.9950, 0.0087},  // 550nm F5
-  {0.4929, 1.0000, 0.0039},  // 555nm FY
-  {1.0622, 0.6310, 0.0008},  // 600nm FXL
-  {0.1750, 0.1070, 0.0000},  // 640nm F6
-  {0.0057, 0.0021, 0.0000},  // 690nm F7
+  {0.02319,	0.00064, 0.1102},     // 405nm F1 
+  {0.21477,	0.0073,  1.03905},    // 425nm F2
+  {0.3362,	0.038,   1.77211},    // 450nm FZ
+  {0.1421,	0.1126,  1.0419},     // 475nm F3
+  {0.0291,	0.6082,  0.1117},     // 515nm F4
+  {0.43345,	0.99495, 0.00875},    // 550nm F5
+  {0.51205, 1.0000,  0.00575},    // 555nm FY
+  {1.0622,  0.6310,  0.0008},     // 600nm FXL
+  {0.4479,	0.175,	 0.00002},    // 640nm F6
+  {0.0227,	0.00821, 0.0000},     // 690nm F7
 };
 
 //map of reading enums to loop through in order
@@ -44,7 +45,15 @@ bool Hue::begin(){
   }
 
   //config colour sensor
-  colSense.setGain(AS7343_GAIN_64X);
+  //set brightness
+  //0.5x-2048x (goes up pow of 2)
+  //higher gain = larger numbers recorded
+  colSense.setGain(AS7343_GAIN_16X);
+
+  //from adafruit demo code
+  //dont quite understand this stuff
+  //together control integration time
+  //how long the sensor's photodiodes accumulate charge per measurement?
   colSense.setATIME(29);  // Integration cycles
   colSense.setASTEP(599); // Step size
 
