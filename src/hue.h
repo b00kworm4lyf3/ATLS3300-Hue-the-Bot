@@ -5,30 +5,44 @@
 #include <Adafruit_NeoPixel.h>
 #include <Adafruit_AS7343.h>
 #include <Adafruit_MPU6050.h>
+#include <Adafruit_GFX.h> 
+#include <Adafruit_ST7789.h> //belly screen lib
 
 class Hue{
     public:
-        Hue(uint8_t neoPin = 0, uint8_t numPix = 1); //only builtin neopix rn
+        Hue(uint8_t neoPin = 0, uint8_t numPix = 1); //default to esp32 neopix
 
-        bool begin();
+        bool begin(); //init everything
+
+        //read functions
         void readCol(); //sample colour sensor and update current RGB/hex
         void readMpu(); //sample accel/gyro
-        void show(); //push current colour (rn to esp32 neopix, will be to screen and 2 external neopix)
-        void printRead(); //print to serial
+
+        //display functions
+        void show(); //push current colour to neopix and belly screen
+        void testdrawtext(const char *text, uint16_t color);
+        void printRead(); //print current sensor readings to serial
 
         //current colour -- updated with readCol()
         uint8_t r, g, b; //0-255
-        char hex[8]; //hex version
+        char hex[8]; //hex version for output to user
 
         //current accel and gyro reads -- updated with readMpu()
         sensors_vec_t accel, gyro;
 
     private:
+        //internal use vars
+        uint8_t numPix;
+        //sensors
         Adafruit_AS7343 colSense;
         Adafruit_MPU6050 mpu;
+
+        //neopix and screens
         Adafruit_NeoPixel strip;
+        Adafruit_ST7789 tft; //belly screen
+
+        //colour read util
         uint16_t readings[18]; //raw spectral reads
-        
         void spec2rgb();
 
         //for processing raw colour vals
@@ -37,5 +51,12 @@ class Hue{
             float xBar, yBar, zBar;
         } cieTable[NUM_VIS];
 
-        static const uint16_t chanMap[NUM_VIS]; //map the adafruit as7347 enums so we can loop
+        //map the adafruit as7347 enums so we can loop
+        static const uint16_t chanMap[NUM_VIS];
+
+        //for belly screen 
+        //TODO: UPDATE PIN VALS
+        static constexpr int TFT_CS  = 15;
+        static constexpr int TFT_RST = 32;
+        static constexpr int TFT_DC  = 33;
 };

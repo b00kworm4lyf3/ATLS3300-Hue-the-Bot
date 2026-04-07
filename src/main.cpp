@@ -1,6 +1,8 @@
 #include "hue.h"
 
-Hue hue;
+//using default constructor with built-in neopixel
+//update with (pin#, 2) once extern neopixels are added
+Hue hue(12, 2); 
 
 void setup() {
   Serial.begin(9600);
@@ -20,7 +22,7 @@ void loop() {
   delay(500);
 }
 
-//task sketchout
+//task sketchout for RTOS implementation
 //core 1: sensor tasks
 //colour sense -- read when button is pressed -- lower priority
 //accelerometer sense -- check this every 500ms and then every 50 if motionn is detected -- higher priority

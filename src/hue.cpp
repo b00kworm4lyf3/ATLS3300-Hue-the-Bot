@@ -18,6 +18,7 @@ const Hue::ChannelCIE Hue::cieTable[NUM_VIS] = {
 };
 
 //map of reading enums to loop through in order
+//enums not necessarily in order so solidifying that here
 const uint16_t Hue::chanMap[NUM_VIS] = {
   AS7343_CHANNEL_F1, AS7343_CHANNEL_F2,
   AS7343_CHANNEL_FZ, AS7343_CHANNEL_F3,
@@ -26,10 +27,12 @@ const uint16_t Hue::chanMap[NUM_VIS] = {
   AS7343_CHANNEL_F6, AS7343_CHANNEL_F7,
 };
 
+//
 Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
-    r(0), g(0), b(0){
-      
+    r(0), g(0), b(0), numPix(numPix),
+    tft(TFT_CS, TFT_DC, TFT_RST){
+
   hex[0] = '\0'; //empty hex char array to start
   return;
 }
@@ -48,7 +51,7 @@ bool Hue::begin(){
   //set brightness
   //0.5x-2048x (goes up pow of 2)
   //higher gain = larger numbers recorded
-  colSense.setGain(AS7343_GAIN_16X);
+  colSense.setGain(AS7343_GAIN_8X);
 
   //from adafruit demo code
   //dont quite understand this stuff
@@ -56,6 +59,8 @@ bool Hue::begin(){
   //how long the sensor's photodiodes accumulate charge per measurement?
   colSense.setATIME(29);  // Integration cycles
   colSense.setASTEP(599); // Step size
+  colSense.setLEDCurrent(4);
+  colSense.enableLED(true);
 
   if(!mpu.begin()){
     Serial.println("Gyro-accel sensor failed to initialize!");
@@ -78,6 +83,13 @@ bool Hue::begin(){
   //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
+  //init ST7789 240x240 (belly screen)
+  tft.init(240, 240);
+  tft.fillScreen(ST77XX_BLUE);
+  tft.setCursor(0, 0);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextWrap(true);
+  tft.print("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere.");
   return true;
 }
 
@@ -132,10 +144,20 @@ void Hue::spec2rgb(){
 }
 
 void Hue::show(){
-  strip.setPixelColor(0, strip.Color(r, g, b));
+  for(int i = 0; i < numPix; i++){
+    strip.setPixelColor(i, strip.Color(r, g, b));
+  }
+  
   strip.show();
 
   return;
+}
+
+void Hue::testdrawtext(const char *text, uint16_t color) {
+  tft.setCursor(0, 0);
+  tft.setTextColor(color);
+  tft.setTextWrap(true);
+  tft.print(text);
 }
 
 void Hue::readMpu(){
