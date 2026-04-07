@@ -7,6 +7,7 @@
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_GFX.h> 
 #include <Adafruit_ST7789.h> //belly screen lib
+#include <Adafruit_SSD1306.h> //face screen lib
 
 class Hue{
     public:
@@ -20,7 +21,7 @@ class Hue{
 
         //display functions
         void show(); //push current colour to neopix and belly screen
-        void testdrawtext(const char *text, uint16_t color);
+        void express(); //update face based on accel/gyro
         void printRead(); //print current sensor readings to serial
 
         //current colour -- updated with readCol()
@@ -33,6 +34,7 @@ class Hue{
     private:
         //internal use vars
         uint8_t numPix;
+
         //sensors
         Adafruit_AS7343 colSense;
         Adafruit_MPU6050 mpu;
@@ -40,6 +42,7 @@ class Hue{
         //neopix and screens
         Adafruit_NeoPixel strip;
         Adafruit_ST7789 tft; //belly screen
+        Adafruit_SSD1306 face; //face screen
 
         //colour read util
         uint16_t readings[18]; //raw spectral reads
@@ -59,4 +62,9 @@ class Hue{
         static constexpr int TFT_CS  = 15;
         static constexpr int TFT_RST = 32;
         static constexpr int TFT_DC  = 33;
+
+        //for face screen
+        static constexpr int FWIDTH  = 128;
+        static constexpr int FHEIGHT = 64;
+        static constexpr int FADDR = 0x3D; //TODO: CHECK I2C ADDRESS
 };

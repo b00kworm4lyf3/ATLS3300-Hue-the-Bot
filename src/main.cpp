@@ -19,6 +19,7 @@ void loop() {
   hue.readMpu(); //need to delay ~10 sec for proper readings
   hue.printRead();
   hue.show();
+  hue.express();
   delay(500);
 }
 

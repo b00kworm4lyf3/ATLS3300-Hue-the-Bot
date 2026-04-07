@@ -31,7 +31,8 @@ const uint16_t Hue::chanMap[NUM_VIS] = {
 Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
     r(0), g(0), b(0), numPix(numPix),
-    tft(TFT_CS, TFT_DC, TFT_RST){
+    tft(TFT_CS, TFT_DC, TFT_RST),
+    face(FWIDTH, FHEIGHT, &Wire, -1){
 
   hex[0] = '\0'; //empty hex char array to start
   return;
@@ -51,7 +52,7 @@ bool Hue::begin(){
   //set brightness
   //0.5x-2048x (goes up pow of 2)
   //higher gain = larger numbers recorded
-  colSense.setGain(AS7343_GAIN_8X);
+  colSense.setGain(AS7343_GAIN_16X);
 
   //from adafruit demo code
   //dont quite understand this stuff
@@ -85,11 +86,18 @@ bool Hue::begin(){
 
   //init ST7789 240x240 (belly screen)
   tft.init(240, 240);
-  tft.fillScreen(ST77XX_BLUE);
-  tft.setCursor(0, 0);
-  tft.setTextColor(ST77XX_WHITE);
-  tft.setTextWrap(true);
-  tft.print("Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur adipiscing ante sed nibh tincidunt feugiat. Maecenas enim massa, fringilla sed malesuada et, malesuada sit amet turpis. Sed porttitor neque ut ante pretium vitae malesuada nunc bibendum. Nullam aliquet ultrices massa eu hendrerit. Ut sed nisi lorem. In vestibulum purus a tortor imperdiet posuere.");
+  tft.fillScreen(ST77XX_BLACK);
+
+  //init face screen
+  if(!face.begin(SSD1306_SWITCHCAPVCC, FADDR)){
+    Serial.println("Face screen failed to initialize!");
+    return false;
+  }
+
+  face.display();
+  delay(1000);
+  face.clearDisplay();
+  
   return true;
 }
 
@@ -147,17 +155,26 @@ void Hue::show(){
   for(int i = 0; i < numPix; i++){
     strip.setPixelColor(i, strip.Color(r, g, b));
   }
-  
   strip.show();
+
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setCursor(0, 0);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setTextWrap(true);
+  tft.print(hex);
 
   return;
 }
 
-void Hue::testdrawtext(const char *text, uint16_t color) {
-  tft.setCursor(0, 0);
-  tft.setTextColor(color);
-  tft.setTextWrap(true);
-  tft.print(text);
+void Hue::express(){
+  face.clearDisplay(); //clear before placing new pix
+
+  //pix pos
+  int px = constrain(FWIDTH/2  + accel.x, 0, FWIDTH  - 1);
+  int py = constrain(FHEIGHT/2 + accel.y, 0, FHEIGHT - 1);
+
+  face.drawPixel(px, py, SSD1306_WHITE);
+  face.display();
 }
 
 void Hue::readMpu(){
