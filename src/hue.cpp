@@ -86,6 +86,7 @@ bool Hue::begin(){
 
   //init ST7789 240x240 (belly screen)
   tft.init(240, 240);
+  tft.setRotation(2);
   tft.fillScreen(ST77XX_BLUE);
 
   //init face screen
@@ -94,8 +95,9 @@ bool Hue::begin(){
     return false;
   }
 
+  face.setRotation(2);
   face.display();
-  delay(1000);
+  delay(2000);
   face.clearDisplay();
   
   return true;
@@ -157,24 +159,34 @@ void Hue::show(){
   }
   strip.show();
 
-  int time = millis();
   tft.fillScreen(ST77XX_BLACK);
-  tft.setCursor(0, 0);
+  tft.setCursor(15, tft.height()/2);
+  tft.setTextSize(5);
   tft.setTextColor(ST77XX_WHITE);
   tft.setTextWrap(true);
-  tft.print(time);
+  tft.print(hex);
 
   return;
 }
 
 void Hue::express(){
-  //face.clearDisplay(); //clear before placing new pix
+  face.clearDisplay(); //clear before placing new pix
 
-  //pix pos
-  int px = constrain(FWIDTH/2  + accel.x, 0, FWIDTH  - 1);
-  int py = constrain(FHEIGHT/2 + accel.y, 0, FHEIGHT - 1);
+  int eyeWid = FWIDTH/5; //int mult will truncate
+  int eyeHei = FHEIGHT/2;
 
-  face.drawPixel(px, py, SSD1306_WHITE);
+  //base eye x pos, y is just halfway point
+  int x1 = FWIDTH/2 - eyeWid*1.5;
+  int x2 = FWIDTH/2 + eyeWid*1.5;
+
+  //pos augment with accel CENTER OF EYES
+  int dx1 = constrain(x1 + accel.y*4, eyeWid, FWIDTH - eyeWid);
+  int dx2 = constrain(x2 + accel.y*4, eyeWid, FWIDTH - eyeWid);
+  int dy = constrain(FHEIGHT/3 - accel.z*4, 20, FHEIGHT - 20);
+
+  face.fillRoundRect(dx1 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+  face.fillRoundRect(dx2 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+
   face.display();
 }
 

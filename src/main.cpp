@@ -17,10 +17,11 @@ void setup() {
 void loop() {
   hue.readCol();
   hue.readMpu(); //need to delay ~10 sec for proper readings
-  hue.printRead();
+  int time = millis();
+  if(time%50 == 0) hue.printRead();
   hue.show();
   hue.express();
-  delay(500);
+  //delay(500);
 }
 
 //task sketchout for RTOS implementation
