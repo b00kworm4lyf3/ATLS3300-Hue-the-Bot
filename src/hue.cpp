@@ -32,7 +32,7 @@ Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
     r(0), g(0), b(0), numPix(numPix),
     tft(TFT_CS, TFT_DC, TFT_RST),
-    face(FWIDTH, FHEIGHT, &Wire, -1){
+    face(FWIDTH, FHEIGHT, &SPI, FACE_DC, FACE_RST, FACE_CS){
 
   hex[0] = '\0'; //empty hex char array to start
   return;
@@ -48,10 +48,10 @@ bool Hue::begin(){
     return false;
   }
 
-  //config colour sensor
-  //set brightness
-  //0.5x-2048x (goes up pow of 2)
-  //higher gain = larger numbers recorded
+  // config colour sensor
+  // set brightness
+  // 0.5x-2048x (goes up pow of 2)
+  // higher gain = larger numbers recorded
   colSense.setGain(AS7343_GAIN_16X);
 
   //from adafruit demo code
@@ -86,10 +86,10 @@ bool Hue::begin(){
 
   //init ST7789 240x240 (belly screen)
   tft.init(240, 240);
-  tft.fillScreen(ST77XX_BLACK);
+  tft.fillScreen(ST77XX_BLUE);
 
   //init face screen
-  if(!face.begin(SSD1306_SWITCHCAPVCC, FADDR)){
+  if(!face.begin(SSD1306_SWITCHCAPVCC)){
     Serial.println("Face screen failed to initialize!");
     return false;
   }
@@ -157,17 +157,18 @@ void Hue::show(){
   }
   strip.show();
 
+  int time = millis();
   tft.fillScreen(ST77XX_BLACK);
   tft.setCursor(0, 0);
   tft.setTextColor(ST77XX_WHITE);
   tft.setTextWrap(true);
-  tft.print(hex);
+  tft.print(time);
 
   return;
 }
 
 void Hue::express(){
-  face.clearDisplay(); //clear before placing new pix
+  //face.clearDisplay(); //clear before placing new pix
 
   //pix pos
   int px = constrain(FWIDTH/2  + accel.x, 0, FWIDTH  - 1);

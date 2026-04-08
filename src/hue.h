@@ -59,12 +59,15 @@ class Hue{
 
         //for belly screen 
         //TODO: UPDATE PIN VALS
-        static constexpr int TFT_CS  = 15;
+        static constexpr int TFT_CS  = 14;
         static constexpr int TFT_RST = 32;
         static constexpr int TFT_DC  = 33;
 
         //for face screen
-        static constexpr int FWIDTH  = 128;
-        static constexpr int FHEIGHT = 64;
-        static constexpr int FADDR = 0x3D; //TODO: CHECK I2C ADDRESS
+        static constexpr int FWIDTH   = 128;
+        static constexpr int FHEIGHT  = 64;
+        static constexpr int FACE_CS  = 13;
+        static constexpr int FACE_RST = 5;
+        static constexpr int FACE_DC  = 33;
+
 };

@@ -2,7 +2,7 @@
 
 //using default constructor with built-in neopixel
 //update with (pin#, 2) once extern neopixels are added
-Hue hue(12, 2); 
+Hue hue(25, 2);
 
 void setup() {
   Serial.begin(9600);
