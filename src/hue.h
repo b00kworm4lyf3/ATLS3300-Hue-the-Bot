@@ -58,10 +58,10 @@ class Hue{
         static const uint16_t chanMap[NUM_VIS];
 
         //for belly screen 
-        //TODO: UPDATE PIN VALS
         static constexpr int TFT_CS  = 14;
         static constexpr int TFT_RST = 32;
         static constexpr int TFT_DC  = 33;
+        //static constexpr int TFT_LITE -- backlight pin
 
         //for face screen
         static constexpr int FWIDTH   = 128;
