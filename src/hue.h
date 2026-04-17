@@ -66,8 +66,8 @@ class Hue{
         //for face screen
         static constexpr int FWIDTH   = 128;
         static constexpr int FHEIGHT  = 64;
-        static constexpr int FACE_CS  = 13;
-        static constexpr int FACE_RST = 5;
-        static constexpr int FACE_DC  = 33;
+        // static constexpr int FACE_CS  = 13;
+        // static constexpr int FACE_RST = 5;
+        // static constexpr int FACE_DC  = 33;
 
 };

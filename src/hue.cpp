@@ -32,7 +32,7 @@ Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
     r(0), g(0), b(0), numPix(numPix),
     tft(TFT_CS, TFT_DC, TFT_RST),
-    face(FWIDTH, FHEIGHT, &SPI, FACE_DC, FACE_RST, FACE_CS){
+    face(FWIDTH, FHEIGHT, &Wire, -1){
 
   hex[0] = '\0'; //empty hex char array to start
   return;
@@ -85,12 +85,12 @@ bool Hue::begin(){
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
   //init ST7789 240x240 (belly screen)
-  tft.init(240, 240);
-  tft.setRotation(2);
-  tft.fillScreen(ST77XX_BLUE);
+  // tft.init(240, 240);
+  // tft.setRotation(2);
+  // tft.fillScreen(ST77XX_BLUE);
 
   //init face screen
-  if(!face.begin(SSD1306_SWITCHCAPVCC)){
+  if(!face.begin(SSD1306_SWITCHCAPVCC, 0x3C)){
     Serial.println("Face screen failed to initialize!");
     return false;
   }
