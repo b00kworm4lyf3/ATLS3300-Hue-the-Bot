@@ -34,7 +34,8 @@ Hue::Hue(uint8_t neoPin, uint8_t numPix)
     tft(TFT_CS, TFT_DC, TFT_RST),
     face(FWIDTH, FHEIGHT, &Wire, -1){
 
-  hex[0] = '\0'; //empty hex char array to start
+  hex[0]     = '\0'; //empty hex char array to start
+  lastHex[0] = '\0';
   return;
 }
 
@@ -84,9 +85,9 @@ bool Hue::begin(){
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
   //init ST7789 240x240 (belly screen)
-  // tft.init(240, 240);
-  // tft.setRotation(2);
-  // tft.fillScreen(ST77XX_BLUE);
+  tft.init(240, 240);
+  tft.setRotation(2);
+  tft.fillScreen(ST77XX_WHITE);
 
   //init face screen
   if(!face.begin(SSD1306_SWITCHCAPVCC, 0x3C)){
@@ -173,12 +174,15 @@ void Hue::show(){
   }
   strip.show();
 
-  tft.fillScreen(ST77XX_BLACK);
-  tft.setCursor(15, tft.height()/2);
-  tft.setTextSize(5);
-  tft.setTextColor(ST77XX_WHITE);
-  tft.setTextWrap(true);
-  tft.print(hex);
+  if(strcmp(hex, lastHex) != 0){
+    tft.fillScreen(ST77XX_BLACK);
+    tft.setCursor(15, tft.height()/2);
+    tft.setTextSize(5);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextWrap(true);
+    tft.print(hex);
+    strncpy(lastHex, hex, sizeof(lastHex));
+  }
 
   return;
 }

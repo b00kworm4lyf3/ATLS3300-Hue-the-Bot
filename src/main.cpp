@@ -27,6 +27,10 @@ void setup() {
 
   //mutual exclusion for i2c (3 devices on i2c)
   i2cMutex = xSemaphoreCreateMutex();
+  if(!i2cMutex){
+    Serial.println("Failed to create i2cMutex!");
+    while(1) delay(10);
+  }
 
   //sensor read tasks - on core 1
   xTaskCreatePinnedToCore(colourRead, "colourRead", 10000, //stack size, need to check this
@@ -87,14 +91,15 @@ static void faceDisplay(void* pvParameters){
     xSemaphoreTake(i2cMutex, portMAX_DELAY);
     hue.express();
     xSemaphoreGive(i2cMutex);
-    vTaskDelay(500/portTICK_PERIOD_MS);
+    vTaskDelay(33/portTICK_PERIOD_MS); //~30fps
   }
 }
 
+//uses SPI, no mutex needed as only one device
 static void bellyDisplay(void* pvParameters){
   for(;;){
     hue.show();
-    vTaskDelay(500/portTICK_PERIOD_MS);
+    vTaskDelay(33/portTICK_PERIOD_MS); //same here but show() only updates when hex changes
   }
 }
 

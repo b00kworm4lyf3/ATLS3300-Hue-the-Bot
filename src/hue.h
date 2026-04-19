@@ -27,6 +27,7 @@ class Hue{
         //current colour -- updated with readCol()
         uint8_t r, g, b; //0-255
         char hex[8]; //hex version for output to user
+        char lastHex[8];
 
         //current accel and gyro reads -- updated with readMpu()
         sensors_vec_t accel, gyro;
