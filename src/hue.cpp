@@ -125,13 +125,15 @@ void Hue::spec2rgb(){
     }
 
     //xyz to lin rgb
-    //norm y to = 1 (y is luminance)
-    float norm = (y>0) ? 1.0/y : 1.0;
+    //norm with CLEAR chan
+    float clear = (float)readings[AS7343_CHANNEL_VIS_TL_0];
+    float norm = (clear>0) ? 1.0/clear : 1.0;
     x *= norm;
-    y *= norm; //will be 1 by def
+    y *= norm;
     z *= norm;
 
-    //standard D65 illuminant lin trans matrix 
+    //standard D65 illuminant lin trans matrix
+    //http://www.brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
     //will give [0-1] typically
     float rLin, gLin, bLin;
     rLin =  3.2406*x - 1.5372*y - 0.4986*z;
@@ -143,12 +145,24 @@ void Hue::spec2rgb(){
     gLin = constrain(gLin, 0.0, 1.0);
     bLin = constrain(bLin, 0.0, 1.0);
 
+    //leds use lin rgb
     r = (uint8_t)(rLin*255.0);
     g = (uint8_t)(gLin*255.0);
     b = (uint8_t)(bLin*255.0);
 
-    //convert rgb to hex string, put in hex char array
-    snprintf(hex, sizeof(hex), "#%02X%02X%02X", r, g, b);
+    //apply gamma correction, lin rgb to srgb
+    //https://en.wikipedia.org/wiki/SRGB#Transfer_function_(%22gamma%22)
+    auto gammaCorrect = [](float lin) -> uint8_t{
+      float col = (lin <= 0.0031308) ? 12.92*lin : 1.055*pow(lin, 1.0/2.4) -0.055;
+      return (uint8_t)(constrain(col, 0.0, 1.0)*255.0);
+    };
+
+    uint8_t rH = gammaCorrect(rLin);
+    uint8_t gH = gammaCorrect(gLin);
+    uint8_t bH = gammaCorrect(bLin);
+
+    //convert srgb to hex string, put in hex char array
+    snprintf(hex, sizeof(hex), "#%02X%02X%02X", rH, gH, bH);
 
     return;
 }
