@@ -60,8 +60,7 @@ bool Hue::begin(){
   //how long the sensor's photodiodes accumulate charge per measurement?
   colSense.setATIME(29);  // Integration cycles
   colSense.setASTEP(599); // Step size
-  colSense.setLEDCurrent(4);
-  colSense.enableLED(true);
+  colSense.setLEDCurrent(128);
 
   if(!mpu.begin()){
     Serial.println("Gyro-accel sensor failed to initialize!");
@@ -104,13 +103,14 @@ bool Hue::begin(){
 }
 
 void Hue::readCol(){
+  colSense.enableLED(true);
   if (!colSense.readAllChannels(readings)) {
     Serial.println("Read failed!");
     return;
   }
+  colSense.enableLED(false);
 
   spec2rgb();
-
   return;
 }
 
