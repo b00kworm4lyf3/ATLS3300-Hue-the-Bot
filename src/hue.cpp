@@ -27,15 +27,28 @@ const uint16_t Hue::chanMap[NUM_VIS] = {
   AS7343_CHANNEL_F6, AS7343_CHANNEL_F7,
 };
 
-//
+const unsigned char Hue::epd_bitmap_hueSwirlEye [] PROGMEM = {
+  0x00, 0x00, 0x78, 0x00, 0x00, 0x00, 0x0f, 0xff, 0x00, 0x00, 0x00, 0x7f, 0xff, 0xc0, 0x00, 0x01, 
+  0xff, 0xff, 0xf0, 0x00, 0x07, 0xff, 0xff, 0xf8, 0x00, 0x0f, 0xff, 0xff, 0xfc, 0x00, 0x1f, 0xff, 
+  0xff, 0xfc, 0x00, 0x1f, 0xff, 0xff, 0xfe, 0x00, 0x3f, 0xff, 0xdf, 0xfe, 0x00, 0x3f, 0xfc, 0x03, 
+  0xff, 0x00, 0x7f, 0xe0, 0x01, 0xff, 0x00, 0x7f, 0xc0, 0x00, 0xff, 0x80, 0xff, 0x80, 0xe0, 0xff, 
+  0x80, 0xff, 0x83, 0xf8, 0x7f, 0xc0, 0xff, 0x0f, 0xfc, 0x7f, 0xc0, 0xff, 0x0f, 0xfc, 0x3f, 0xc0, 
+  0xff, 0x1f, 0xfe, 0x3f, 0xc0, 0xff, 0x1f, 0xfe, 0x3f, 0xc0, 0xff, 0x3f, 0xfc, 0x7f, 0xc0, 0xff, 
+  0x3f, 0xfc, 0x7f, 0xc0, 0xff, 0x3f, 0xf0, 0x7f, 0x80, 0xff, 0x3f, 0xf0, 0xff, 0x80, 0x7e, 0x3f, 
+  0xff, 0xff, 0x80, 0x7e, 0x1f, 0xff, 0xff, 0x00, 0x18, 0x1f, 0xff, 0xff, 0x00, 0x00, 0x0f, 0xff, 
+  0xfe, 0x00, 0x00, 0x0f, 0xff, 0xfc, 0x00, 0x00, 0x03, 0xff, 0xf8, 0x00, 0x00, 0x00, 0xff, 0xf0, 
+  0x00, 0x00, 0x00, 0x3f, 0xc0, 0x00
+};
+
 Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
-    r(0), g(0), b(0), numPix(numPix),
-    tft(TFT_CS, TFT_DC, TFT_RST),
+    r(0), g(0), b(0), numPix(numPix), epd_bitmap_allArray_LEN(0),
+    faceState(IDLE), tft(TFT_CS, TFT_DC, TFT_RST),
     face(FWIDTH, FHEIGHT, &Wire, -1){
 
   hex[0]     = '\0'; //empty hex char array to start
   lastHex[0] = '\0';
+  epd_bitmap_allArray[0] = epd_bitmap_hueSwirlEye;
   return;
 }
 
@@ -44,50 +57,51 @@ bool Hue::begin(){
   strip.setBrightness(30);
   strip.show();
 
-  if(!colSense.begin()){
-    Serial.println("Colour sensor failed to initialize!");
-    return false;
-  }
+  // if(!colSense.begin()){
+  //   Serial.println("Colour sensor failed to initialize!");
+  //   return false;
+  // }
 
   // config colour sensor
   // set brightness
   // 0.5x-2048x (goes up pow of 2)
   // higher gain = larger numbers recorded
-  colSense.setGain(AS7343_GAIN_16X);
+  // colSense.setGain(AS7343_GAIN_16X);
 
-  //from adafruit demo code
-  //dont quite understand this stuff
-  //together control integration time
-  //how long the sensor's photodiodes accumulate charge per measurement?
-  colSense.setATIME(29);  // Integration cycles
-  colSense.setASTEP(599); // Step size
-  colSense.setLEDCurrent(128);
+  // //from adafruit demo code
+  // //dont quite understand this stuff
+  // //together control integration time
+  // //how long the sensor's photodiodes accumulate charge per measurement?
+  // colSense.setATIME(29);  // Integration cycles
+  // colSense.setASTEP(599); // Step size
+  // colSense.setLEDCurrent(4);
+  // colSense.enableLED(true);
 
-  if(!mpu.begin()){
-    Serial.println("Gyro-accel sensor failed to initialize!");
-    return false;
-  }
+  // if(!mpu.begin()){
+  //   Serial.println("Gyro-accel sensor failed to initialize!");
+  //   return false;
+  // }
 
-  //config mpu sensor
-  //set max g-force measure
-  //2G-16G, lower more precise/higher more impact
-  //4G = ~+- 9.8m/s^2 * 4 = ~+-39.2m/s^2
-  mpu.setAccelerometerRange(MPU6050_RANGE_4_G); 
+  // //config mpu sensor
+  // //set max g-force measure
+  // //2G-16G, lower more precise/higher more impact
+  // //4G = ~+- 9.8m/s^2 * 4 = ~+-39.2m/s^2
+  // mpu.setAccelerometerRange(MPU6050_RANGE_4_G); 
 
-  //set max rot speed
-  //250deg-2000deg, lower more precise
-  //500deg = +-500deg/s but gyro vals are rad/sec! so read +-8.7rad/sec
-  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  // //set max rot speed
+  // //250deg-2000deg, lower more precise
+  // //500deg = +-500deg/s but gyro vals are rad/sec! so read +-8.7rad/sec
+  // mpu.setGyroRange(MPU6050_RANGE_500_DEG);
 
-  //set filter bandwidth
-  //smooth noise and vib, filters out anything changing faster
-  //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  // //set filter bandwidth
+  // //smooth noise and vib, filters out anything changing faster
+  // //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
+  // mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
   //init ST7789 240x240 (belly screen)
   tft.init(240, 240);
   tft.setRotation(2);
-  tft.fillScreen(ST77XX_WHITE);
+  tft.fillScreen(ST77XX_BLUE);
 
   //init face screen
   if(!face.begin(SSD1306_SWITCHCAPVCC, 0x3C)){
@@ -104,12 +118,12 @@ bool Hue::begin(){
 }
 
 void Hue::readCol(){
-  colSense.enableLED(true);
+  //colSense.enableLED(true);
   if (!colSense.readAllChannels(readings)) {
     Serial.println("Read failed!");
     return;
   }
-  colSense.enableLED(false);
+  //colSense.enableLED(false);
 
   spec2rgb();
   return;
@@ -174,37 +188,22 @@ void Hue::show(){
   }
   strip.show();
 
-  if(strcmp(hex, lastHex) != 0){
+  //if(strcmp(hex, lastHex) != 0){
     tft.fillScreen(ST77XX_BLACK);
     tft.setCursor(15, tft.height()/2);
     tft.setTextSize(5);
     tft.setTextColor(ST77XX_WHITE);
     tft.setTextWrap(true);
     tft.print(hex);
-    strncpy(lastHex, hex, sizeof(lastHex));
-  }
+    //strncpy(lastHex, hex, sizeof(lastHex));
+  //}
 
   return;
 }
 
 void Hue::express(){
   face.clearDisplay(); //clear before placing new pix
-
-  int eyeWid = FWIDTH/5; //int mult will truncate
-  int eyeHei = FHEIGHT/2;
-
-  //base eye x pos, y is just halfway point
-  int x1 = FWIDTH/2 - eyeWid*1.5;
-  int x2 = FWIDTH/2 + eyeWid*1.5;
-
-  //pos augment with accel CENTER OF EYES
-  int dx1 = constrain(x1 + accel.y*4, eyeWid, FWIDTH - eyeWid);
-  int dx2 = constrain(x2 + accel.y*4, eyeWid, FWIDTH - eyeWid);
-  int dy = constrain(FHEIGHT/3 - accel.z*4, 20, FHEIGHT - 20);
-
-  face.fillRoundRect(dx1 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
-  face.fillRoundRect(dx2 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
-
+  animateFace();
   face.display();
 }
 
@@ -244,4 +243,46 @@ void Hue::printRead(){
   Serial.println("Gyro (x(pitch), y(roll), z(yaw)): ");
   Serial.println(String(gyro.x) + ", " + String(gyro.y) + ", " + String(gyro.z));
 
+}
+
+void Hue::changeState(Faces newFace){ //default IDLE
+  faceState = newFace;
+}
+
+void Hue::animateFace(){
+  int eyeWid = FWIDTH/5; //int mult will truncate
+  int eyeHei = FHEIGHT/2;
+
+  //base eye x pos, y is just halfway point
+  int x1 = FWIDTH/2 - eyeWid*1.5;
+  int x2 = FWIDTH/2 + eyeWid*1.5;
+
+  //pos augment with accel CENTER OF EYES
+  // int dx1 = constrain(x1 + accel.y*4, eyeWid, FWIDTH - eyeWid);
+  // int dx2 = constrain(x2 + accel.y*4, eyeWid, FWIDTH - eyeWid);
+  // int dy = constrain(FHEIGHT/3 - accel.z*4, 20, FHEIGHT - 20);
+
+  if(faceState == IDLE || faceState == BLINK){
+    // face.fillRoundRect(dx1 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    // face.fillRoundRect(dx2 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    face.fillRoundRect(x1-eyeWid/2, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    face.fillRoundRect(x2-eyeWid/2, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+
+    if(faceState == BLINK){
+      //between eyehei/2 + 5 (most closed) and eyehei/2 + eyehei (all the way open)
+      float blinkH = (sin(millis()*0.002) + 1.0) * 0.5 * (eyeHei+10.0)+5.0;
+      face.fillRoundRect(x1-eyeWid/2, eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
+      face.fillRoundRect(x2-eyeWid/2, eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
+    }
+  }
+  else if(faceState == SLEEP){
+    float sleepW = sin(millis()*0.0002);
+    face.fillRoundRect(x1-eyeWid/2 + sleepW, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    face.fillRoundRect(x2-eyeWid/2 + sleepW, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    face.fillRoundRect(x1-eyeWid/2 + sleepW, eyeHei/2 - 5, eyeWid, eyeHei, 90, SSD1306_BLACK);
+    face.fillRoundRect(x2-eyeWid/2 + sleepW, eyeHei/2 - 5, eyeWid, eyeHei, 90, SSD1306_BLACK);
+  }
+  else if(faceState == DIZZY){
+    
+  }
 }

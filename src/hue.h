@@ -8,7 +8,6 @@
 #include <Adafruit_GFX.h> 
 #include <Adafruit_ST7789.h> //belly screen lib
 #include <Adafruit_SSD1306.h> //face screen lib
-
 class Hue{
     public:
         Hue(uint8_t neoPin = 0, uint8_t numPix = 1); //default to esp32 neopix
@@ -70,5 +69,19 @@ class Hue{
         // static constexpr int FACE_CS  = 13;
         // static constexpr int FACE_RST = 5;
         // static constexpr int FACE_DC  = 33;
+
+        enum Faces {IDLE, BLINK, DIZZY, SLEEP};
+        Faces faceState;
+
+        void changeState(Faces newFace = IDLE);
+        void animateFace();
+
+        // 'hueSwirlEye', 34x30px -- from image2cpp
+        static const unsigned char epd_bitmap_hueSwirlEye [] PROGMEM;
+
+        // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 176)
+        const int epd_bitmap_allArray_LEN;
+        const unsigned char* epd_bitmap_allArray[1];
+
 
 };
