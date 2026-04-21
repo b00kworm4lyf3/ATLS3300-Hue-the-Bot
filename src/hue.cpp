@@ -43,7 +43,8 @@ const unsigned char Hue::epd_bitmap_hueSwirlEye [] PROGMEM = {
 Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
     r(0), g(0), b(0), numPix(numPix), epd_bitmap_allArray_LEN(0),
-    faceState(IDLE), tft(TFT_CS, TFT_DC, TFT_RST),
+    faceState(SLEEP), lastBlink(0), theta(0), blinkPhase(0),
+    tft(TFT_CS, TFT_DC, TFT_RST),
     face(FWIDTH, FHEIGHT, &Wire, -1){
 
   hex[0]     = '\0'; //empty hex char array to start
@@ -204,6 +205,8 @@ void Hue::show(){
 void Hue::express(){
   face.clearDisplay(); //clear before placing new pix
   animateFace();
+  if(faceState == IDLE && millis() - lastBlink >= 5000) changeState(BLINK);
+  Serial.println(faceState);
   face.display();
 }
 
@@ -246,6 +249,11 @@ void Hue::printRead(){
 }
 
 void Hue::changeState(Faces newFace){ //default IDLE
+  if(faceState == DIZZY) theta = 0; //reset theta when going FROM dizzy
+  if(faceState == BLINK){
+    blinkPhase = 0; //reset theta when going FROM blink
+    lastBlink = millis(); //set time of last blink
+  }
   faceState = newFace;
 }
 
@@ -270,19 +278,26 @@ void Hue::animateFace(){
 
     if(faceState == BLINK){
       //between eyehei/2 + 5 (most closed) and eyehei/2 + eyehei (all the way open)
-      float blinkH = (sin(millis()*0.002) + 1.0) * 0.5 * (eyeHei+10.0)+5.0;
+      blinkPhase += 5;
+      float blinkH = (sin((float)blinkPhase*0.05) + 1.0) * 0.5 * (eyeHei+10.0)+5.0;
       face.fillRoundRect(x1-eyeWid/2, eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
       face.fillRoundRect(x2-eyeWid/2, eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
+      if(blinkPhase>=125){
+        changeState(IDLE);
+      }
     }
   }
   else if(faceState == SLEEP){
-    float sleepW = sin(millis()*0.0002);
+    blinkPhase += 1;
+    float sleepW = sin((float)blinkPhase*0.05)*eyeWid*0.5;
     face.fillRoundRect(x1-eyeWid/2 + sleepW, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
     face.fillRoundRect(x2-eyeWid/2 + sleepW, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
     face.fillRoundRect(x1-eyeWid/2 + sleepW, eyeHei/2 - 5, eyeWid, eyeHei, 90, SSD1306_BLACK);
     face.fillRoundRect(x2-eyeWid/2 + sleepW, eyeHei/2 - 5, eyeWid, eyeHei, 90, SSD1306_BLACK);
   }
   else if(faceState == DIZZY){
-    
+    theta += 5;
+    face.drawBitmap(x1-19, eyeHei/2, epd_bitmap_hueSwirlEye, 34, 30, SSD1306_WHITE);
+    face.drawBitmap(x2-19, eyeHei/2, epd_bitmap_hueSwirlEye, 34, 30, SSD1306_WHITE);
   }
 }

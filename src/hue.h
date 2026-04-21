@@ -75,6 +75,8 @@ class Hue{
 
         void changeState(Faces newFace = IDLE);
         void animateFace();
+        void rotateBitmap(const unsigned char map);
+        int lastBlink, theta, blinkPhase;
 
         // 'hueSwirlEye', 34x30px -- from image2cpp
         static const unsigned char epd_bitmap_hueSwirlEye [] PROGMEM;
