@@ -43,7 +43,7 @@ const unsigned char Hue::epd_bitmap_hueSwirlEye [] PROGMEM = {
 Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
     r(0), g(0), b(0), numPix(numPix), epd_bitmap_allArray_LEN(0),
-    faceState(SLEEP), lastBlink(0), theta(0), blinkPhase(0),
+    faceState(BLINK), lastBlink(0), theta(0), blinkPhase(0),
     tft(TFT_CS, TFT_DC, TFT_RST),
     face(FWIDTH, FHEIGHT, &Wire, -1){
 
@@ -58,46 +58,46 @@ bool Hue::begin(){
   strip.setBrightness(30);
   strip.show();
 
-  // if(!colSense.begin()){
-  //   Serial.println("Colour sensor failed to initialize!");
-  //   return false;
-  // }
+  if(!colSense.begin()){
+    Serial.println("Colour sensor failed to initialize!");
+    return false;
+  }
 
   // config colour sensor
   // set brightness
   // 0.5x-2048x (goes up pow of 2)
   // higher gain = larger numbers recorded
-  // colSense.setGain(AS7343_GAIN_16X);
+  colSense.setGain(AS7343_GAIN_16X);
 
-  // //from adafruit demo code
-  // //dont quite understand this stuff
-  // //together control integration time
-  // //how long the sensor's photodiodes accumulate charge per measurement?
-  // colSense.setATIME(29);  // Integration cycles
-  // colSense.setASTEP(599); // Step size
-  // colSense.setLEDCurrent(4);
-  // colSense.enableLED(true);
+  //from adafruit demo code
+  //dont quite understand this stuff
+  //together control integration time
+  //how long the sensor's photodiodes accumulate charge per measurement?
+  colSense.setATIME(29);  // Integration cycles
+  colSense.setASTEP(599); // Step size
+  colSense.setLEDCurrent(4);
+  //colSense.enableLED(true);
 
-  // if(!mpu.begin()){
-  //   Serial.println("Gyro-accel sensor failed to initialize!");
-  //   return false;
-  // }
+  if(!mpu.begin()){
+    Serial.println("Gyro-accel sensor failed to initialize!");
+    return false;
+  }
 
-  // //config mpu sensor
-  // //set max g-force measure
-  // //2G-16G, lower more precise/higher more impact
-  // //4G = ~+- 9.8m/s^2 * 4 = ~+-39.2m/s^2
-  // mpu.setAccelerometerRange(MPU6050_RANGE_4_G); 
+  //config mpu sensor
+  //set max g-force measure
+  //2G-16G, lower more precise/higher more impact
+  //4G = ~+- 9.8m/s^2 * 4 = ~+-39.2m/s^2
+  mpu.setAccelerometerRange(MPU6050_RANGE_4_G); 
 
-  // //set max rot speed
-  // //250deg-2000deg, lower more precise
-  // //500deg = +-500deg/s but gyro vals are rad/sec! so read +-8.7rad/sec
-  // mpu.setGyroRange(MPU6050_RANGE_500_DEG);
+  //set max rot speed
+  //250deg-2000deg, lower more precise
+  //500deg = +-500deg/s but gyro vals are rad/sec! so read +-8.7rad/sec
+  mpu.setGyroRange(MPU6050_RANGE_500_DEG);
 
-  // //set filter bandwidth
-  // //smooth noise and vib, filters out anything changing faster
-  // //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
-  // mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+  //set filter bandwidth
+  //smooth noise and vib, filters out anything changing faster
+  //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
+  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
   //init ST7789 240x240 (belly screen)
   tft.init(240, 240);
@@ -119,12 +119,12 @@ bool Hue::begin(){
 }
 
 void Hue::readCol(){
-  //colSense.enableLED(true);
+  colSense.enableLED(true);
   if (!colSense.readAllChannels(readings)) {
     Serial.println("Read failed!");
     return;
   }
-  //colSense.enableLED(false);
+  colSense.enableLED(false);
 
   spec2rgb();
   return;
@@ -189,15 +189,15 @@ void Hue::show(){
   }
   strip.show();
 
-  //if(strcmp(hex, lastHex) != 0){
+  if(strcmp(hex, lastHex) != 0){
     tft.fillScreen(ST77XX_BLACK);
     tft.setCursor(15, tft.height()/2);
     tft.setTextSize(5);
     tft.setTextColor(ST77XX_WHITE);
     tft.setTextWrap(true);
     tft.print(hex);
-    //strncpy(lastHex, hex, sizeof(lastHex));
-  //}
+    strncpy(lastHex, hex, sizeof(lastHex));
+  }
 
   return;
 }
@@ -206,7 +206,7 @@ void Hue::express(){
   face.clearDisplay(); //clear before placing new pix
   animateFace();
   if(faceState == IDLE && millis() - lastBlink >= 5000) changeState(BLINK);
-  Serial.println(faceState);
+  //Serial.println(faceState);
   face.display();
 }
 
@@ -214,8 +214,16 @@ void Hue::readMpu(){
   sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
 
+  prevAccel = accel;
   accel = a.acceleration;
   gyro = g.gyro;
+
+  if((abs(gyro.x) + abs(gyro.y) + abs(gyro.z))/3.0 > 2.5){
+    changeState(DIZZY);
+  }
+  else if(faceState == DIZZY && (abs(gyro.x) + abs(gyro.y) + abs(gyro.z))/3.0 <= 2.5){
+    changeState(IDLE);
+  }
 
   return;
 }
@@ -251,8 +259,11 @@ void Hue::printRead(){
 void Hue::changeState(Faces newFace){ //default IDLE
   if(faceState == DIZZY) theta = 0; //reset theta when going FROM dizzy
   if(faceState == BLINK){
-    blinkPhase = 0; //reset theta when going FROM blink
+    blinkPhase = 0; //reset phase when going FROM blink
     lastBlink = millis(); //set time of last blink
+  }
+  if(faceState == SLEEP){
+    blinkPhase = 0; //reset phase when going FROM sleep
   }
   faceState = newFace;
 }
@@ -266,22 +277,20 @@ void Hue::animateFace(){
   int x2 = FWIDTH/2 + eyeWid*1.5;
 
   //pos augment with accel CENTER OF EYES
-  // int dx1 = constrain(x1 + accel.y*4, eyeWid, FWIDTH - eyeWid);
-  // int dx2 = constrain(x2 + accel.y*4, eyeWid, FWIDTH - eyeWid);
-  // int dy = constrain(FHEIGHT/3 - accel.z*4, 20, FHEIGHT - 20);
+  int dx1 = constrain(x1 + accel.y*4, eyeWid, FWIDTH - eyeWid*3);
+  int dx2 = constrain(x2 + accel.y*4, eyeWid*3, FWIDTH - eyeWid);
+  int dy = constrain(FHEIGHT/3 - accel.z*4, 20, FHEIGHT - 20);
 
   if(faceState == IDLE || faceState == BLINK){
-    // face.fillRoundRect(dx1 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
-    // face.fillRoundRect(dx2 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
-    face.fillRoundRect(x1-eyeWid/2, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
-    face.fillRoundRect(x2-eyeWid/2, eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    face.fillRoundRect(dx1 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
+    face.fillRoundRect(dx2 - eyeWid/2, dy - eyeHei/2, eyeWid, eyeHei, 90, SSD1306_WHITE);
 
     if(faceState == BLINK){
       //between eyehei/2 + 5 (most closed) and eyehei/2 + eyehei (all the way open)
       blinkPhase += 5;
       float blinkH = (sin((float)blinkPhase*0.05) + 1.0) * 0.5 * (eyeHei+10.0)+5.0;
-      face.fillRoundRect(x1-eyeWid/2, eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
-      face.fillRoundRect(x2-eyeWid/2, eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
+      face.fillRoundRect(dx1-eyeWid/2, dy - eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
+      face.fillRoundRect(dx2-eyeWid/2, dy - eyeHei/2 + blinkH, eyeWid, eyeHei, 90, SSD1306_BLACK);
       if(blinkPhase>=125){
         changeState(IDLE);
       }

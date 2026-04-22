@@ -29,7 +29,7 @@ class Hue{
         char lastHex[8];
 
         //current accel and gyro reads -- updated with readMpu()
-        sensors_vec_t accel, gyro;
+        sensors_vec_t accel, gyro, prevAccel;
 
     private:
         //internal use vars

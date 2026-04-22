@@ -8,10 +8,12 @@ static void bellyDisplay(void* pvParameters);
 
 Hue hue(25, 2);
 SemaphoreHandle_t i2cMutex;
-//TaskHandle_t colHandle = NULL;
+TaskHandle_t colHandle = NULL;
 
-const int BUTPIN = 26;
+//ledpin = 5 -- NOT WORKING FOR INPUT
+const int BUTPIN = 7;
 volatile unsigned long lastButTime = 0; //isr shared var needs to be volatile
+unsigned long lastPrint = 0;
 
 
 void setup() {
@@ -34,10 +36,10 @@ void setup() {
   Serial.println("i2cMutex initialized!");
 
   //sensor read tasks - on core 1
-  // xTaskCreatePinnedToCore(colourRead, "colourRead", 10000, //stack size, need to check this
-  //                         NULL, 1, &colHandle, 1 );
   xTaskCreatePinnedToCore(colourRead, "colourRead", 10000, //stack size, need to check this
-                          NULL, 1, NULL, 1 );
+                          NULL, 1, &colHandle, 1 );
+  // xTaskCreatePinnedToCore(colourRead, "colourRead", 10000, //stack size, need to check this
+  //                         NULL, 1, NULL, 1 );
 
   xTaskCreatePinnedToCore(accelRead, "accelRead", 10000,
                           NULL, 2, NULL, 1);
@@ -49,41 +51,43 @@ void setup() {
   xTaskCreatePinnedToCore(bellyDisplay, "bellyDisplay", 10000,
                           NULL, 1, NULL, 0);
                           
-  //attachInterrupt(digitalPinToInterrupt(BUTPIN), onButtonPress, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(BUTPIN), onButtonPress, CHANGE);
 }
 
 void loop() {
-  // int time = millis();
-  // if(time%50 <= 10) hue.printRead();
+  if(millis() - lastPrint >= 1000){
+    hue.printRead();
+    lastPrint = millis();
+  }
 }
 
-// void IRAM_ATTR onButtonPress(){ //isr in internal ram, not flash
-//   unsigned long now = millis();
-//   if(now-lastButTime < 100) return;
-//   lastButTime = now;
+void IRAM_ATTR onButtonPress(){ //isr in internal ram, not flash
+  unsigned long now = millis();
+  if(now-lastButTime < 100) return;
+  lastButTime = now;
 
-//   BaseType_t taskWoken = pdFALSE;
-//   vTaskNotifyGiveFromISR(colHandle, &taskWoken);
-//   portYIELD_FROM_ISR(taskWoken);
-// }
+  BaseType_t taskWoken = pdFALSE;
+  vTaskNotifyGiveFromISR(colHandle, &taskWoken);
+  portYIELD_FROM_ISR(taskWoken);
+}
 
 static void colourRead(void* pvParameters){
   for(;;){
-    //ulTaskNotifyTake(pdTRUE, portMAX_DELAY); //sleep til button press
+    ulTaskNotifyTake(pdTRUE, portMAX_DELAY); //sleep til button press
 
-    //while(digitalRead(BUTPIN) == LOW){
+    while(digitalRead(BUTPIN) == LOW){
       xSemaphoreTake(i2cMutex, portMAX_DELAY);
-      // hue.readCol();
+      hue.readCol();
       xSemaphoreGive(i2cMutex);
       vTaskDelay(100/portTICK_PERIOD_MS);
-    //}
+    }
   }
 }
 
 static void accelRead(void* pvParameters){
   for(;;){
     xSemaphoreTake(i2cMutex, portMAX_DELAY);
-    //hue.readMpu(); //need to delay ~10 sec for proper readings
+    hue.readMpu(); //need to delay ~10 sec for proper readings
     xSemaphoreGive(i2cMutex);
     vTaskDelay(500/portTICK_PERIOD_MS); //outside the mutex tradeoff!
   }
