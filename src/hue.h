@@ -6,7 +6,8 @@
 #include <Adafruit_AS7343.h>
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_GFX.h> 
-#include <Adafruit_ST7789.h> //belly screen lib
+//#include <Adafruit_ST7789.h> //belly screen lib
+#include <Adafruit_SH110X.h> //replacement belly screen lib!!
 #include <Adafruit_SSD1306.h> //face screen lib
 class Hue{
     public:
@@ -29,7 +30,8 @@ class Hue{
         char lastHex[8];
 
         //current accel and gyro reads -- updated with readMpu()
-        sensors_vec_t accel, gyro, prevAccel;
+        sensors_vec_t accel, gyro, prevAccel, prevGyro;
+        bool moving;
 
     private:
         //internal use vars
@@ -41,7 +43,8 @@ class Hue{
 
         //neopix and screens
         Adafruit_NeoPixel strip;
-        Adafruit_ST7789 tft; //belly screen
+        //Adafruit_ST7789 tft; //belly screen
+        Adafruit_SH1106G belly;
         Adafruit_SSD1306 face; //face screen
 
         //colour read util
@@ -70,12 +73,16 @@ class Hue{
         // static constexpr int FACE_RST = 5;
         // static constexpr int FACE_DC  = 33;
 
+
+        //fsm for differrennt anim
         enum Faces {IDLE, BLINK, DIZZY, SLEEP};
         Faces faceState;
 
         void changeState(Faces newFace = IDLE);
         void animateFace();
-        void rotateBitmap(const unsigned char map);
+        void printHex();
+        // void animateBelly();
+        // void rotateBitmap(const unsigned char map); //TODO
         int lastBlink, theta, blinkPhase;
 
         // 'hueSwirlEye', 34x30px -- from image2cpp
@@ -84,6 +91,4 @@ class Hue{
         // Array of all bitmaps for convenience. (Total bytes used to store images in PROGMEM = 176)
         const int epd_bitmap_allArray_LEN;
         const unsigned char* epd_bitmap_allArray[1];
-
-
 };

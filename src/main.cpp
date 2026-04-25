@@ -4,7 +4,8 @@ void IRAM_ATTR onButtonPress();
 static void colourRead(void* pvParameters);
 static void accelRead(void* pvParameters);
 static void faceDisplay(void* pvParameters);
-static void bellyDisplay(void* pvParameters);
+//static void bellyDisplay(void* pvParameters);
+static void bellyDisplay2(void* pvParameters);
 
 Hue hue(25, 2);
 SemaphoreHandle_t i2cMutex;
@@ -48,17 +49,19 @@ void setup() {
   xTaskCreatePinnedToCore(faceDisplay, "faceDisplay", 10000,
                           NULL, 2, NULL, 0);
 
-  xTaskCreatePinnedToCore(bellyDisplay, "bellyDisplay", 10000,
+  // xTaskCreatePinnedToCore(bellyDisplay, "bellyDisplay", 10000,
+  //                         NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(bellyDisplay2, "bellyDisplay2", 10000,
                           NULL, 1, NULL, 0);
-                          
+  
   attachInterrupt(digitalPinToInterrupt(BUTPIN), onButtonPress, CHANGE);
 }
 
 void loop() {
-  if(millis() - lastPrint >= 1000){
-    hue.printRead();
-    lastPrint = millis();
-  }
+  // if(millis() - lastPrint >= 1000){
+  //   hue.printRead();
+  //   lastPrint = millis();
+  // }
 }
 
 void IRAM_ATTR onButtonPress(){ //isr in internal ram, not flash
@@ -89,7 +92,8 @@ static void accelRead(void* pvParameters){
     xSemaphoreTake(i2cMutex, portMAX_DELAY);
     hue.readMpu(); //need to delay ~10 sec for proper readings
     xSemaphoreGive(i2cMutex);
-    vTaskDelay(500/portTICK_PERIOD_MS); //outside the mutex tradeoff!
+    unsigned int delay = hue.moving ? 50 : 500;
+    vTaskDelay(delay/portTICK_PERIOD_MS); //outside the mutex tradeoff!
   }
 }
 
@@ -102,10 +106,20 @@ static void faceDisplay(void* pvParameters){
   }
 }
 
-//uses SPI, no mutex needed as only one device
-static void bellyDisplay(void* pvParameters){
+// //uses SPI, no mutex needed as only one device
+// static void bellyDisplay(void* pvParameters){
+//   for(;;){
+//     hue.show();
+//     vTaskDelay(33/portTICK_PERIOD_MS); //same here but show() only updates when hex changes
+//   }
+// }
+
+//replacement on i2c
+static void bellyDisplay2(void* pvParameters){
   for(;;){
+    xSemaphoreTake(i2cMutex, portMAX_DELAY);
     hue.show();
+    xSemaphoreGive(i2cMutex);
     vTaskDelay(33/portTICK_PERIOD_MS); //same here but show() only updates when hex changes
   }
 }

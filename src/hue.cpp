@@ -43,8 +43,9 @@ const unsigned char Hue::epd_bitmap_hueSwirlEye [] PROGMEM = {
 Hue::Hue(uint8_t neoPin, uint8_t numPix)
     :strip(numPix, neoPin, NEO_GRB+NEO_KHZ800),
     r(0), g(0), b(0), numPix(numPix), epd_bitmap_allArray_LEN(0),
-    faceState(BLINK), lastBlink(0), theta(0), blinkPhase(0),
-    tft(TFT_CS, TFT_DC, TFT_RST),
+    faceState(BLINK), lastBlink(0), theta(0), blinkPhase(0), moving(false),
+    //tft(TFT_CS, TFT_DC, TFT_RST),
+    belly(128, 64, &Wire, -1),
     face(FWIDTH, FHEIGHT, &Wire, -1){
 
   hex[0]     = '\0'; //empty hex char array to start
@@ -99,10 +100,10 @@ bool Hue::begin(){
   //5hz-260hz, lower is smoother but laggier/higher is more responsive but noisier
   mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
 
-  //init ST7789 240x240 (belly screen)
-  tft.init(240, 240);
-  tft.setRotation(2);
-  tft.fillScreen(ST77XX_BLUE);
+  // //init ST7789 240x240 (belly screen)
+  // tft.init(240, 240);
+  // tft.setRotation(2);
+  // tft.fillScreen(ST77XX_BLUE);
 
   //init face screen
   if(!face.begin(SSD1306_SWITCHCAPVCC, 0x3C)){
@@ -110,10 +111,19 @@ bool Hue::begin(){
     return false;
   }
 
+  //init replacement belly screen (SH1106 128x64)
+  // if(!belly.begin(0x3c, true)){
+  //   Serial.println("Belly screen failed to initialize!");
+  //   return false;
+  // }
+
   face.setRotation(2);
+
   face.display();
+  //belly.display();
   delay(2000);
   face.clearDisplay();
+  //belly.clearDisplay();
   
   return true;
 }
@@ -189,15 +199,8 @@ void Hue::show(){
   }
   strip.show();
 
-  if(strcmp(hex, lastHex) != 0){
-    tft.fillScreen(ST77XX_BLACK);
-    tft.setCursor(15, tft.height()/2);
-    tft.setTextSize(5);
-    tft.setTextColor(ST77XX_WHITE);
-    tft.setTextWrap(true);
-    tft.print(hex);
-    strncpy(lastHex, hex, sizeof(lastHex));
-  }
+  //animateBelly();
+  //printHex();
 
   return;
 }
@@ -215,16 +218,29 @@ void Hue::readMpu(){
   mpu.getEvent(&a, &g, &temp);
 
   prevAccel = accel;
+  prevGyro = gyro;
   accel = a.acceleration;
   gyro = g.gyro;
 
-  if((abs(gyro.x) + abs(gyro.y) + abs(gyro.z))/3.0 > 2.5){
+  //if meaningful magnitude angular vel, change to dizzy state
+  if((abs(gyro.x) + abs(gyro.y) + abs(gyro.z))/3.0 >= 2.5 && 
+     (abs(prevGyro.x) + abs(prevGyro.y) + abs(prevGyro.z))/3.0 >= 2.5){
     changeState(DIZZY);
+    moving = true;
   }
-  else if(faceState == DIZZY && (abs(gyro.x) + abs(gyro.y) + abs(gyro.z))/3.0 <= 2.5){
+  else if(faceState == DIZZY && 
+         (abs(gyro.x) + abs(gyro.y) + abs(gyro.z))/3.0 < 0.75 && 
+         (abs(prevGyro.x) + abs(prevGyro.y) + abs(prevGyro.z))/3.0 < 0.75){
     changeState(IDLE);
   }
 
+  if(abs(prevAccel.x) - abs(accel.x) > 0.02 || 
+     abs(prevAccel.y) - abs(accel.y) > 0.02 || 
+     abs(prevAccel.z) - abs(accel.z) > 0.02){
+      moving = true;
+  }
+  else moving = false;
+  Serial.println(moving);
   return;
 }
 
@@ -254,6 +270,34 @@ void Hue::printRead(){
   Serial.println("Gyro (x(pitch), y(roll), z(yaw)): ");
   Serial.println(String(gyro.x) + ", " + String(gyro.y) + ", " + String(gyro.z));
 
+}
+
+void Hue::printHex(){ //replacement animate belly for new screen
+  if(faceState == IDLE || faceState == BLINK){
+    if(hex[0] == '\0'){
+      belly.clearDisplay();
+    }
+    else if(strcmp(hex, lastHex) != 0){
+      belly.setCursor(15, belly.height()/2);
+      belly.setTextSize(5);
+      belly.setTextColor(SH110X_WHITE);
+      belly.setTextWrap(true);
+      belly.print(hex);
+      strncpy(lastHex, hex, sizeof(lastHex));
+    }
+  }
+  else if(faceState == SLEEP){
+    belly.clearDisplay();
+  }
+  else if(faceState == DIZZY){
+    uint8_t colour = 1;
+    for(int16_t i = 0; i < belly.height(); i += 2){
+      //alternate colours
+      belly.drawCircle(belly.width()/2, belly.height()/2, i, colour%2);
+      belly.display();
+      colour++;
+    }
+  }
 }
 
 void Hue::changeState(Faces newFace){ //default IDLE
@@ -310,3 +354,44 @@ void Hue::animateFace(){
     face.drawBitmap(x2-19, eyeHei/2, epd_bitmap_hueSwirlEye, 34, 30, SSD1306_WHITE);
   }
 }
+
+// void Hue::animateBelly(){
+//   if(faceState == IDLE || faceState == BLINK){
+//     if(hex[0] == '\0'){
+//       tft.fillScreen(ST77XX_RED);
+//       tft.drawRect(10, 10, tft.width() - 10, tft.height() - 10, ST77XX_ORANGE);
+//       tft.drawRect(20, 20, tft.width() - 20, tft.height() - 20, ST77XX_YELLOW);
+//       tft.drawRect(30, 30, tft.width() - 30, tft.height() - 30, ST77XX_GREEN);
+//       tft.drawRect(50, 50, tft.width() - 50, tft.height() - 50, ST77XX_BLUE);
+//       tft.drawRect(60, 60, tft.width() - 60, tft.height() - 60, ST77XX_MAGENTA);
+//     }
+//     else if(strcmp(hex, lastHex) != 0){ 
+//       // tft.fillScreen(ST77XX_BLACK);
+//       // tft.drawRect(0, 0, tft.width(), tft.height(), (r, g, b));
+//       tft.fillScreen((r, g, b));
+//       tft.drawRect(10, 10, tft.width() - 10, tft.height() - 10, ST77XX_BLACK);
+//       tft.setCursor(15, tft.height()/2);
+//       tft.setTextSize(5);
+//       tft.setTextColor(ST77XX_WHITE);
+//       tft.setTextWrap(true);
+//       tft.print(hex);
+//       strncpy(lastHex, hex, sizeof(lastHex));
+//     }
+//   }
+//   else if(faceState == SLEEP){
+//     tft.fillScreen(ST77XX_RED);
+//     tft.drawRect(10, 10, tft.width() - 10, tft.height() - 10, ST77XX_ORANGE);
+//     tft.drawRect(20, 20, tft.width() - 20, tft.height() - 20, ST77XX_YELLOW);
+//     tft.drawRect(30, 30, tft.width() - 30, tft.height() - 30, ST77XX_GREEN);
+//     tft.drawRect(50, 50, tft.width() - 50, tft.height() - 50, ST77XX_BLUE);
+//     tft.drawRect(60, 60, tft.width() - 60, tft.height() - 60, ST77XX_MAGENTA);
+//   }
+//   else if(faceState == DIZZY){
+//     tft.fillScreen(ST77XX_RED);
+//     tft.drawRect(10, 10, tft.width() - 10, tft.height() - 10, ST77XX_ORANGE);
+//     tft.drawRect(20, 20, tft.width() - 20, tft.height() - 20, ST77XX_YELLOW);
+//     tft.drawRect(30, 30, tft.width() - 30, tft.height() - 30, ST77XX_GREEN);
+//     tft.drawRect(50, 50, tft.width() - 50, tft.height() - 50, ST77XX_BLUE);
+//     tft.drawRect(60, 60, tft.width() - 60, tft.height() - 60, ST77XX_MAGENTA);
+//   }
+// }
